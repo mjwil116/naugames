@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blackjack</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@500;600;800&family=Limelight&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="casino.css">
+</head>
+<body class="blackjack">
+<main class="shell">
+<section class="cabinet">
+<h1 class="title">Blackjack</h1>
+<p class="tagline">Beat the dealer without going over 21. Blackjack pays 3:2.</p>
+
+<div class="bar">
+  <div class="field">
+    <label for="bet">Bet amount:</label>
+    <input type="number" id="bet" name="bet" placeholder="Enter points amount" value="10">
+  </div>
+  <button class="btn gold" id="deal-btn" onclick="startGame()">Deal Hand</button>
+</div>
+<div class="felt">
+  <div class="hand">
+    <h3>Dealer's Hand <span class="score">Score: <span id="dealer-score">-</span></span></h3>
+    <div id="dealer-cards" class="card-container"></div>
+  </div>
+  <div class="hand">
+    <h3>Your Hand <span class="score">Score: <span id="player-score">-</span></span></h3>
+    <div id="player-cards" class="card-container"></div>
+  </div>
+  <div class="bar">
+    <button class="btn blue" id="hit-btn" onclick="hit()" disabled>Hit</button>
+    <button class="btn blue" id="stand-btn" onclick="stand()" disabled>Stand</button>
+  </div>
+</div>
+<h3 id="game-status"></h3>
+<h1 id="earnings" class="readout">- points</h1>
+</section>
+<a class="back" href="index.html">Go Back</a>
+</main>
+
+<script>
+    // Game state tracking
+    let deck = [];
+    let playerHand = [];
+    let dealerHand = [];
+    let currentBet = 0;
+    let gameActive = false;
+
+    // Sound effects (files live in the sounds folder)
+    const sounds = {
+        new:  new Audio('sounds/new.wav'),
+        win:  new Audio('sounds/win.wav'),
+        lose: new Audio('sounds/lose.wav')
+    };
+    let pendingResultHandler = null;
+
+    function playSound(name) {
+        const s = sounds[name];
+        s.currentTime = 0;
+        s.play().catch(() => {}); // ignore if a file is missing or the browser blocks it
+    }
+
+    // If a hand ends right on the deal (natural 21), let new.wav finish before the win/lose sound
+    function playResultSound(name) {
+        if (!sounds.new.paused && !sounds.new.ended) {
+            pendingResultHandler = () => { pendingResultHandler = null; playSound(name); };
+            sounds.new.addEventListener('ended', pendingResultHandler, { once: true });
+        } else {
+            playSound(name);
+        }
+    }
+
+    const suits = ['clubs', 'diamonds', 'hearts', 'spades'];
+    // Using formatted strings to match your file naming standard 'card_{type}_##.png'
+    const values = ['02', '03', '04', '05', '06', '07', '08', '09', '10', 'J', 'Q', 'K', 'A'];
+
+    // 1. Initialize and shuffle a standard 52-card deck
+    function buildDeck() {
+        let newDeck = [];
+        for (let suit of suits) {
+            for (let val of values) {
+                newDeck.push({ suit: suit, value: val });
+            }
+        }
+        // Fisher-Yates shuffle algorithm
+        for (let i = newDeck.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [newDeck[i], newDeck[j]] = [newDeck[j], newDeck[i]];
+        }
+        return newDeck;
+    }
+
+    // 2. Start a new round
+    function startGame() {
+        const betInput = document.getElementById('bet');
+        currentBet = parseInt(betInput.value);
+
+        if (isNaN(currentBet) || currentBet <= 0) {
+            alert("Please enter a valid bet amount greater than 0.");
+            return;
+        }
+
+        // New game sound (cancel any result sound still waiting from the previous hand)
+        if (pendingResultHandler) {
+            sounds.new.removeEventListener('ended', pendingResultHandler);
+            pendingResultHandler = null;
+        }
+        playSound('new');
+
+        // Reset elements and game state
+        deck = buildDeck();
+        playerHand = [];
+        dealerHand = [];
+        gameActive = true;
+        document.getElementById('game-status').innerText = "";
+        document.getElementById('earnings').innerText = "- points";
+
+        // Enable action buttons, disable deal button during active play
+        document.getElementById('hit-btn').disabled = false;
+        document.getElementById('stand-btn').disabled = false;
+        document.getElementById('deal-btn').disabled = true;
+
+        // Deal initial 2 cards to player and dealer
+        playerHand.push(deck.pop());
+        dealerHand.push(deck.pop());
+        playerHand.push(deck.pop());
+        dealerHand.push(deck.pop());
+
+        renderHands(false); // Hide dealer's downcard initially
+        checkInitialBlackjack();
+    }
+
+    // 3. Compute Blackjack point totals with flexible Ace assignment (11 or 1)
+    function calculateScore(hand) {
+        let score = 0;
+        let aces = 0;
+
+        for (let card of hand) {
+            if (card.value === 'A') {
+                aces += 1;
+                score += 11;
+            } else if (['J', 'Q', 'K'].includes(card.value)) {
+                score += 10;
+            } else {
+                score += parseInt(card.value);
+            }
+        }
+
+        // Downgrade Aces from 11 to 1 if the score busts 21
+        while (score > 21 && aces > 0) {
+            score -= 10;
+            aces -= 1;
+        }
+
+        return score;
+    }
+
+    // 4. Generate card elements referencing your exact file paths
+    function getCardImgHtml(card, isHidden = false) {
+        if (isHidden) {
+            // Placeholder path for hidden dealer cards. Update with your own card back file name if different.
+            return `<img src="card-pngs/card_back.png" alt="Hidden Card">`;
+        }
+        return `<img src="card-pngs/card_${card.suit}_${card.value}.png" alt="${card.value} of ${card.suit}">`;
+    }
+
+    // 5. Update DOM visuals for scores and cards
+    function renderHands(showAllDealerCards) {
+        // Render Player
+        const playerContainer = document.getElementById('player-cards');
+        playerContainer.innerHTML = playerHand.map(card => getCardImgHtml(card)).join('');
+        document.getElementById('player-score').innerText = calculateScore(playerHand);
+
+        // Render Dealer
+        const dealerContainer = document.getElementById('dealer-cards');
+        if (showAllDealerCards) {
+            dealerContainer.innerHTML = dealerHand.map(card => getCardImgHtml(card)).join('');
+            document.getElementById('dealer-score').innerText = calculateScore(dealerHand);
+        } else {
+            // Show only the first card face up, second card face down
+            dealerContainer.innerHTML = getCardImgHtml(dealerHand[0]) + getCardImgHtml(dealerHand[1], true);
+            // Show only the value of the visible card
+            let partialHand = [dealerHand[0]];
+            document.getElementById('dealer-score').innerText = calculateScore(partialHand);
+        }
+    }
+
+    // Check for natural 21s right after dealing
+    function checkInitialBlackjack() {
+        let pScore = calculateScore(playerHand);
+        let dScore = calculateScore(dealerHand);
+
+        if (pScore === 21 || dScore === 21) {
+            endGame();
+        }
+    }
+
+    // 6. Action: Hit
+    function hit() {
+        if (!gameActive) return;
+
+        playerHand.push(deck.pop());
+        renderHands(false);
+
+        if (calculateScore(playerHand) > 21) {
+            endGame(); // Player busted
+        }
+    }
+
+    // 7. Action: Stand
+    function stand() {
+        if (!gameActive) return;
+
+        // Dealer hits until hitting a soft or hard 17
+        while (calculateScore(dealerHand) < 17) {
+            dealerHand.push(deck.pop());
+        }
+
+        endGame();
+    }
+
+    // 8. Determine winner and settle point earnings
+    function endGame() {
+        gameActive = false;
+        document.getElementById('hit-btn').disabled = true;
+        document.getElementById('stand-btn').disabled = true;
+        document.getElementById('deal-btn').disabled = false;
+
+        renderHands(true); // Reveal the dealer's hidden hand
+
+        const playerScore = calculateScore(playerHand);
+        const dealerScore = calculateScore(dealerHand);
+        
+        let statusText = "";
+        let earningsText = "";
+
+        if (playerScore > 21) {
+            statusText = "You Busted! Dealer Wins.";
+            earningsText = `-${currentBet} points`;
+        } else if (dealerScore > 21) {
+            statusText = "Dealer Busted! You Win!";
+            earningsText = `+${currentBet} points`;
+        } else if (playerScore === 21 && playerHand.length === 2 && !(dealerScore === 21 && dealerHand.length === 2)) {
+            // Natural Blackjack traditionally pays out 3:2
+            const blackjackPayout = Math.floor(currentBet * 1.5);
+            statusText = "Blackjack!";
+            earningsText = `+${blackjackPayout} points`;
+        } else if (playerScore > dealerScore) {
+            statusText = "You Win!";
+            earningsText = `+${currentBet} points`;
+        } else if (playerScore < dealerScore) {
+            statusText = "Dealer Wins.";
+            earningsText = `-${currentBet} points`;
+        } else {
+            statusText = "It's a Push (Tie).";
+            earningsText = "0 points";
+        }
+
+        document.getElementById('game-status').innerText = statusText;
+        document.getElementById('earnings').innerText = earningsText;
+
+        // Win/lose sound (a push plays nothing)
+        if (earningsText.startsWith('+')) playResultSound('win');
+        else if (earningsText.startsWith('-')) playResultSound('lose');
+    }
+</script>
+</body>
+</html>

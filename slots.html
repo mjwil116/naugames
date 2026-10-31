@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slots</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@500;600;800&family=Limelight&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="casino.css">
+</head>
+<body class="slots">
+<main class="shell">
+<section class="cabinet">
+<h1 class="title">Slots</h1>
+<p class="tagline">Match three symbols to hit the jackpot. Sevens pay 50x.</p>
+
+<div class="reels">
+  <div class="reel"><img id="slotImg1" alt="" src=""><h5 id="resultName1" class="reveal">-</h5></div>
+  <div class="reel"><img id="slotImg2" alt="" src=""><h5 id="resultName2" class="reveal">-</h5></div>
+  <div class="reel"><img id="slotImg3" alt="" src=""><h5 id="resultName3" class="reveal">-</h5></div>
+</div>
+<h1 id="earnings" class="readout reveal">- points</h1>
+<div class="bar">
+  <div class="field">
+    <label for="bet">Bet amount:</label>
+    <input type="number" id="bet" name="bet" placeholder="Enter points amount">
+  </div>
+  <button class="btn gold roll" onclick="rollSlots()">Roll</button>
+</div>
+</section>
+<a class="back" href="index.html">Go Back</a>
+</main>
+
+<script>
+    // 1. Array mapping the random numbers (0-8) to image names
+    const slotImages = [
+        "cherry.png", // 0
+        "bar.jpg",    // 1
+        "seven.jpg",  // 2
+        "bell.png",   // 3
+        "lemon.png",  // 4
+        "jack.jpg",   // 5
+        "queen.jpg",  // 6
+        "king.jpg",   // 7
+        "ace.png"     // 8
+    ];
+
+    // Array to match the cleaner text names for the h5 outputs
+    const slotNames = [
+        "Cherry", "Bar", "Seven", "Bell", "Lemon", "Jack", "Queen", "King", "Ace"
+    ];
+
+    // Sound effects (files live in the sounds folder)
+    const sounds = {
+        lose:   new Audio("sounds/lose.wav"),
+        pair:   new Audio("sounds/pair.mp3"),
+        triple: new Audio("sounds/triple.mp3")
+    };
+
+    function playSound(name) {
+        const s = sounds[name];
+        s.currentTime = 0;
+        s.play().catch(() => {}); // ignore if a file is missing or the browser blocks it
+    }
+
+    function rollSlots() {
+        // Get the current input value when the button is clicked
+        const betInput = document.getElementById("bet").value;
+        const betAmount = parseFloat(betInput);
+
+        // Validation check
+        if (isNaN(betAmount) || betAmount <= 0) {
+            alert("Please enter a valid bet amount!");
+            return;
+        }
+        
+        // Generate slot output (0 - 8 inclusive)
+        const randomSlot1 = Math.floor(Math.random() * 9);
+        const randomSlot2 = Math.floor(Math.random() * 9);
+        const randomSlot3 = Math.floor(Math.random() * 9);
+        
+        // Assign the 'src' of each image using the array mapping
+        document.getElementById("slotImg1").src = slotImages[randomSlot1];
+        document.getElementById("slotImg2").src = slotImages[randomSlot2];
+        document.getElementById("slotImg3").src = slotImages[randomSlot3];
+
+        // Update the three h5 text lines with the clean names
+        document.getElementById("resultName1").textContent = slotNames[randomSlot1];
+        document.getElementById("resultName2").textContent = slotNames[randomSlot2];
+        document.getElementById("resultName3").textContent = slotNames[randomSlot3];
+
+        // Calculate Results using standard multipliers
+        const earningsDisplay = document.getElementById("earnings");
+        
+        // Case 1: Three of a kind (Jackpot)
+        if (randomSlot1 === randomSlot2 && randomSlot2 === randomSlot3) {
+            let multiplier = 10; // Standard 10x multiplier for most matches
+            
+            // Premium multipliers for top-tier icons
+            if (randomSlot1 === 2) multiplier = 50; // Sevens pay 50x
+            if (randomSlot1 === 1) multiplier = 25; // Bars pay 25x
+
+            const totalWon = betAmount * multiplier;
+            earningsDisplay.textContent = `+${totalWon} points (Jackpot!)`;
+            earningsDisplay.style.color = "#2b8a3e";
+            playSound("triple"); // a triple plays triple.mp3 AND pair.mp3 together
+            playSound("pair");
+        } 
+        // Case 2: Two of a kind (Any pair)
+        else if (randomSlot1 === randomSlot2 || randomSlot1 === randomSlot3 || randomSlot2 === randomSlot3) {
+            const multiplier = 2; // Returns double your bet
+            const totalWon = betAmount * multiplier;
+            earningsDisplay.textContent = `+${totalWon} points (Pair Win!)`;
+            earningsDisplay.style.color = "#2b8a3e";
+            playSound("pair");
+        } 
+        // Case 3: No matches
+        else {
+            earningsDisplay.textContent = `-${betAmount} points (Lost)`;
+            earningsDisplay.style.color = "#c92a2a";
+            playSound("lose");
+        }
+    }
+</script>
+</body>
+</html>
