@@ -52,6 +52,7 @@
     ];
 
     // Sound effects (files live in the sounds folder)
+    const VOLUME = 0.5; // 0 = silent, 1 = full volume
     const sounds = {
         lose:   new Audio("sounds/lose.wav"),
         pair:   new Audio("sounds/pair.mp3"),
@@ -60,6 +61,7 @@
 
     function playSound(name) {
         const s = sounds[name];
+        s.volume = VOLUME;
         s.currentTime = 0;
         s.play().catch(() => {}); // ignore if a file is missing or the browser blocks it
     }
