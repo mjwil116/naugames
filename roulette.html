@@ -74,7 +74,6 @@
     // Sound effects (files live in the sounds folder)
     const VOLUME = 0.5; // 0 = silent, 1 = full volume
     const sounds = {
-        wheel: new Audio("sounds/wheel.mp3"),
         win:   new Audio("sounds/win.wav"),
         lose:  new Audio("sounds/lose.wav")
     };
@@ -132,7 +131,6 @@
         
         const wheelImg = document.getElementById("wheel");
         wheelImg.style.transform = `rotate(${finalRotation}deg)`;
-        playSound("wheel");
         
         // 4. Update core result texts directly
         document.getElementById("result").textContent = `Number: ${finalNumber}`;
