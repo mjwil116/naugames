@@ -84,6 +84,14 @@
         s.currentTime = 0;
         s.play().catch(() => {}); // ignore if a file is missing or the browser blocks it
     }
+
+    // The result text fades in after a delay set in casino.css (--reveal on body.roulette),
+    // so the win/lose sound waits for that same delay. Reading it from the CSS keeps them in sync.
+    let resultSoundTimer = null;
+    function revealDelayMs() {
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return 0; // CSS skips the delay too
+        return (parseFloat(getComputedStyle(document.body).getPropertyValue("--reveal")) || 0) * 1000;
+    }
     
     function generateNumber() {
         // 1. Get input choices
@@ -177,8 +185,9 @@
             earningsDisplay.style.color = "#c92a2a";
         }
 
-        // Win/lose sound plays at the same moment the result appears on screen
-        playSound(isWin ? "win" : "lose");
+        // Win/lose sound plays when the result fades in on screen (a re-roll mid-spin cancels the old one)
+        clearTimeout(resultSoundTimer);
+        resultSoundTimer = setTimeout(() => playSound(isWin ? "win" : "lose"), revealDelayMs());
     }
 </script>
 </body>
