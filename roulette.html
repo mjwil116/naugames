@@ -72,16 +72,16 @@
     let currentRotation = 0;
 
     // Sound effects (files live in the sounds folder)
+    const VOLUME = 0.5; // 0 = silent, 1 = full volume
     const sounds = {
         wheel: new Audio("sounds/wheel.mp3"),
         win:   new Audio("sounds/win.wav"),
         lose:  new Audio("sounds/lose.wav")
     };
-    let resultSoundTimer = null;
-    const SPIN_MS = 4000; // matches the 4s wheel transition
 
     function playSound(name) {
         const s = sounds[name];
+        s.volume = VOLUME;
         s.currentTime = 0;
         s.play().catch(() => {}); // ignore if a file is missing or the browser blocks it
     }
@@ -179,9 +179,8 @@
             earningsDisplay.style.color = "#c92a2a";
         }
 
-        // Win/lose sound plays once the wheel stops (a re-roll mid-spin cancels the old one)
-        clearTimeout(resultSoundTimer);
-        resultSoundTimer = setTimeout(() => playSound(isWin ? "win" : "lose"), SPIN_MS);
+        // Win/lose sound plays at the same moment the result appears on screen
+        playSound(isWin ? "win" : "lose");
     }
 </script>
 </body>
